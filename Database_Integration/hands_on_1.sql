@@ -49,7 +49,6 @@ CREATE TABLE professors (
 );
 
 
-
 -- HANDS-ON 1 : TASK 2 - NORMALIZATION
 
 -- 1NF
@@ -67,7 +66,6 @@ CREATE TABLE professors (
 -- Department details are stored separately in the departments table.
 -- Storing dept_name in students would violate 3NF.
 -- Therefore, the schema satisfies 3NF.
-
 
 
 ALTER TABLE students
