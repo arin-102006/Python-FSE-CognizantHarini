@@ -1,13 +1,19 @@
 import { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { enrollCourse } from "../redux/enrollmentSlice";
+import { useNavigate } from "react-router-dom";
+
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import CourseCard from "../components/CourseCard";
 
 function CoursesPage() {
   const [courses, setCourses] = useState([]);
-  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setTimeout(() => {
@@ -41,8 +47,9 @@ function CoursesPage() {
   }, []);
 
   function handleEnroll(course) {
-    setEnrolledCourses([...enrolledCourses, course]);
+    dispatch(enrollCourse(course));
     alert(course.name + " Enrolled Successfully!");
+    navigate("/profile");
   }
 
   if (loading) return <h2>Loading Courses...</h2>;
@@ -53,8 +60,6 @@ function CoursesPage() {
       <Header />
 
       <h2>Courses</h2>
-
-      <p>Enrolled Courses: {enrolledCourses.length}</p>
 
       {courses.map((course) => (
         <CourseCard

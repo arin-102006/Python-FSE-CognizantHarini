@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 function Header() {
+  const enrolledCourses = useSelector(
+    (state) => state.enrollment.enrolledCourses
+  );
+
   return (
     <header>
-      <h1>🎓 Student Portal</h1>
+      <h1>Student Portal</h1>
 
       <nav>
         <Link to="/">Home</Link> |{" "}
@@ -11,7 +16,7 @@ function Header() {
         <Link to="/profile">Profile</Link>
       </nav>
 
-      <hr />
+      <p>Enrolled Courses: {enrolledCourses.length}</p>
     </header>
   );
 }
