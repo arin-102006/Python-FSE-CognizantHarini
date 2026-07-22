@@ -1,0 +1,46 @@
+body {
+  font-family: Arial, sans-serif;
+background-color: #fdeff2;
+  margin: 0;
+}
+
+.container {
+  text-align: center;
+  margin-top: 50px;
+}
+
+h1 {
+  color: #2c3e50;
+  font-size: 48px;
+  font-weight: bold;
+}
+.header {
+  background-color: white;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header h2 {
+  margin: 0;
+  color: hotpink;
+}
+
+.header p {
+  color: gray;
+  margin-top: 8px;
+}
+button {
+  background-color: hotpink;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: deeppink;
+}
