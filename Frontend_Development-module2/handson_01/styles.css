@@ -7,7 +7,14 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f4f4;
-    color: #333;
+    color: #222;
+
+    /* Contrast improved:
+       Before: #333
+       After: #222
+       Passes WCAG AA (4.5:1)
+    */
+    line-height: 1.6;
 }
 
 header {
@@ -17,6 +24,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 nav ul {
@@ -29,6 +37,11 @@ nav ul li a {
     color: white;
     text-decoration: none;
     font-weight: bold;
+}
+
+nav ul li a:hover,
+nav ul li a:focus {
+    text-decoration: underline;
 }
 
 #hero {
@@ -46,10 +59,16 @@ nav ul li a {
     color: #3498db;
     cursor: pointer;
     border-radius: 5px;
+    font-weight: bold;
 }
 
 #hero button:hover {
     background-color: #ddd;
+}
+
+#hero button:focus {
+    outline: 3px solid orange;
+    outline-offset: 3px;
 }
 
 #courses {
@@ -60,13 +79,36 @@ nav ul li a {
     margin-bottom: 20px;
 }
 
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+input {
+    width: 300px;
+    max-width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+input:focus {
+    outline: 3px solid #3498db;
+    outline-offset: 2px;
+}
+
 .course-card {
     background-color: white;
     padding: 20px;
     margin-bottom: 20px;
     border: 1px solid #ccc;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.course-card:focus {
+    outline: 3px solid #3498db;
+    outline-offset: 4px;
 }
 
 .course-card h3 {
@@ -77,6 +119,25 @@ nav ul li a {
     margin-bottom: 10px;
 }
 
+.course-card button {
+    margin-top: 15px;
+    padding: 8px 15px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.course-card button:hover {
+    background-color: #217dbb;
+}
+
+.course-card button:focus {
+    outline: 3px solid orange;
+    outline-offset: 3px;
+}
+
 footer {
     background-color: #2c3e50;
     color: white;
@@ -84,3 +145,35 @@ footer {
     padding: 15px;
     margin-top: 30px;
 }
+
+/*
+Cross-Browser Compatibility Documentation
+
+Browser Testing:
+✓ Google Chrome - Passed
+✓ Microsoft Edge - Passed
+✓ Firefox - Tested / Expected to work
+✓ Safari - Tested / Expected to work
+
+Colour Contrast:
+Before:
+Text Colour: #333333
+
+After:
+Text Colour: #222222
+
+Result:
+Passes WCAG AA (Minimum 4.5:1)
+
+CSS Feature Checked:
+Flexbox Gap
+
+Reference:
+https://caniuse.com/flexbox-gap
+
+Result:
+Supported in all modern browsers.
+
+Polyfill Example:
+https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2
+*/
