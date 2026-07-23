@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 
+
 class CourseCreate(BaseModel):
     name: str
     code: str
@@ -50,21 +51,19 @@ class DepartmentResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-class StudentResponse(BaseModel):
-    id: int
-    name: str
-    email: str
 
-    model_config = {"from_attributes": True}
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
+    field: Optional[str] = None
 
 
-class EnrollmentCreate(BaseModel):
-    student_id: int
-    course_id: int
+class ErrorResponse(BaseModel):
+    error: ErrorDetail
 
-class DepartmentResponse(BaseModel):
-    id: int
-    name: str
-    courses: list[CourseResponse] = []
 
-    model_config = {"from_attributes": True}
+class PaginatedCourses(BaseModel):
+    count: int
+    next: Optional[str]
+    previous: Optional[str]
+    results: list[CourseResponse]

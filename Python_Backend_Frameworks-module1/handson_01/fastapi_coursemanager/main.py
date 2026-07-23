@@ -9,22 +9,29 @@ from fastapi import (
     Response,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 
 from database import get_db, engine
 from models import Base, Course, Student, Enrollment
 from schemas import (
     CourseCreate,
+    CourseUpdate,
     CourseResponse,
     StudentCreate,
     StudentResponse,
     EnrollmentCreate,
+    PaginatedCourses,
 )
+
+# API Versioning:
+# URL Versioning: /api/v1/
+# Alternative: Header Versioning using
+# Accept: application/vnd.api+json;version=1
 
 app = FastAPI(
     title="Course Management API",
-    description="FastAPI CRUD API for Course Management",
-    version="2.0",
+    description="FastAPI CRUD API following REST Best Practices",
+    version="2.1",
     contact={
         "name": "Harini SG",
         "email": "harini@example.com",
@@ -47,16 +54,27 @@ def send_confirmation_email(student_email: str):
     print(f"Sending confirmation to {student_email}")
 
 
+def error_response(code: str, message: str, field=None):
+    raise HTTPException(
+        status_code=404 if code == "NOT_FOUND" else 400,
+        detail={
+            "error": {
+                "code": code,
+                "message": message,
+                "field": field,
+            }
+        },
+    )
+
+
 @app.post(
-    "/api/courses/",
+    "/api/v1/courses/",
     response_model=CourseResponse,
     status_code=status.HTTP_201_CREATED,
-    tags=["Courses"],
-    summary="Create Course",
-    response_description="Course created successfully",
 )
 async def create_course(
     course: CourseCreate,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     obj = Course(**course.model_dump())
@@ -65,36 +83,64 @@ async def create_course(
     await db.commit()
     await db.refresh(obj)
 
+    response.headers["Location"] = f"/api/v1/courses/{obj.id}/"
+
     return obj
 
 
 @app.get(
-    "/api/courses/",
-    response_model=list[CourseResponse],
-    tags=["Courses"],
+    "/api/v1/courses/",
+    response_model=PaginatedCourses,
 )
 async def get_courses(
-    skip: int = 0,
-    limit: int = 10,
-    department_id: Optional[int] = None,
+    page: int = 1,
+    page_size: int = 2,
+    search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     query = select(Course)
 
-    if department_id is not None:
-        query = query.where(Course.department_id == department_id)
+    if search:
+        query = query.where(
+            or_(
+                Course.name.ilike(f"%{search}%"),
+                Course.code.ilike(f"%{search}%"),
+            )
+        )
 
-    query = query.offset(skip).limit(limit)
+    total = await db.scalar(
+        select(func.count()).select_from(query.subquery())
+    )
 
-    result = await db.execute(query)
+    result = await db.execute(
+        query.offset((page - 1) * page_size).limit(page_size)
+    )
 
-    return result.scalars().all()
+    courses = result.scalars().all()
+
+    next_page = (
+        f"/api/v1/courses/?page={page+1}&page_size={page_size}"
+        if page * page_size < total
+        else None
+    )
+
+    previous_page = (
+        f"/api/v1/courses/?page={page-1}&page_size={page_size}"
+        if page > 1
+        else None
+    )
+
+    return {
+        "count": total,
+        "next": next_page,
+        "previous": previous_page,
+        "results": courses,
+    }
 
 
 @app.get(
-    "/api/courses/{course_id}",
+    "/api/v1/courses/{course_id}",
     response_model=CourseResponse,
-    tags=["Courses"],
 )
 async def get_course(
     course_id: int,
@@ -107,18 +153,15 @@ async def get_course(
     course = result.scalar_one_or_none()
 
     if course is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found",
+        error_response(
+            "NOT_FOUND",
+            f"Course with id {course_id} does not exist",
         )
 
     return course
-
-
 @app.put(
-    "/api/courses/{course_id}",
+    "/api/v1/courses/{course_id}",
     response_model=CourseResponse,
-    tags=["Courses"],
 )
 async def update_course(
     course_id: int,
@@ -132,9 +175,9 @@ async def update_course(
     obj = result.scalar_one_or_none()
 
     if obj is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found",
+        error_response(
+            "NOT_FOUND",
+            f"Course with id {course_id} does not exist",
         )
 
     obj.name = course.name
@@ -148,10 +191,41 @@ async def update_course(
     return obj
 
 
+@app.patch(
+    "/api/v1/courses/{course_id}",
+    response_model=CourseResponse,
+)
+async def patch_course(
+    course_id: int,
+    course: CourseUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Course).where(Course.id == course_id)
+    )
+
+    obj = result.scalar_one_or_none()
+
+    if obj is None:
+        error_response(
+            "NOT_FOUND",
+            f"Course with id {course_id} does not exist",
+        )
+
+    updates = course.model_dump(exclude_unset=True)
+
+    for key, value in updates.items():
+        setattr(obj, key, value)
+
+    await db.commit()
+    await db.refresh(obj)
+
+    return obj
+
+
 @app.delete(
-    "/api/courses/{course_id}",
+    "/api/v1/courses/{course_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    tags=["Courses"],
 )
 async def delete_course(
     course_id: int,
@@ -164,9 +238,9 @@ async def delete_course(
     obj = result.scalar_one_or_none()
 
     if obj is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found",
+        error_response(
+            "NOT_FOUND",
+            f"Course with id {course_id} does not exist",
         )
 
     await db.delete(obj)
@@ -176,13 +250,13 @@ async def delete_course(
 
 
 @app.post(
-    "/api/students/",
+    "/api/v1/students/",
     response_model=StudentResponse,
-    status_code=201,
-    tags=["Students"],
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_student(
     student: StudentCreate,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     obj = Student(**student.model_dump())
@@ -191,44 +265,55 @@ async def create_student(
     await db.commit()
     await db.refresh(obj)
 
+    response.headers["Location"] = f"/api/v1/students/{obj.id}/"
+
     return obj
 
 
-@app.get(
-    "/api/courses/{course_id}/students/",
-    tags=["Courses"],
-)
+@app.get("/api/v1/courses/{course_id}/students/")
 async def get_course_students(
     course_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
         select(Student)
-        .join(Enrollment, Student.id == Enrollment.student_id)
-        .where(Enrollment.course_id == course_id)
+        .join(
+            Enrollment,
+            Student.id == Enrollment.student_id,
+        )
+        .where(
+            Enrollment.course_id == course_id
+        )
     )
 
     return result.scalars().all()
 
 
 @app.post(
-    "/api/enrollments/",
-    status_code=201,
-    tags=["Enrollments"],
+    "/api/v1/enrollments/",
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_enrollment(
     enrollment: EnrollmentCreate,
     background_tasks: BackgroundTasks,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     obj = Enrollment(**enrollment.model_dump())
 
     db.add(obj)
     await db.commit()
+    await db.refresh(obj)
+
+    response.headers["Location"] = (
+        f"/api/v1/enrollments/{obj.id}/"
+    )
 
     background_tasks.add_task(
         send_confirmation_email,
         "student@example.com",
     )
 
-    return {"message": "Enrollment created"}
+    return {
+        "message": "Enrollment created"
+    }
