@@ -1,0 +1,14 @@
+input{
+    width:250px;
+    padding:8px;
+    margin-bottom:10px;
+}
+
+button{
+    padding:8px 15px;
+}
+
+div{
+    color:red;
+    font-size:14px;
+}

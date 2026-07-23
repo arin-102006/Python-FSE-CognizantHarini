@@ -1,0 +1,18 @@
+<h2>Courses</h2>
+
+<input
+  type="text"
+  placeholder="Search Course"
+  [(ngModel)]="searchTerm">
+
+<div *ngIf="filteredCourses.length === 0">
+  No courses found
+</div>
+
+<app-course-card
+  *ngFor="let course of filteredCourses; trackBy: trackByCode"
+  [name]="course.name"
+  [code]="course.code"
+  [credits]="course.credits"
+  [grade]="course.grade">
+</app-course-card>
