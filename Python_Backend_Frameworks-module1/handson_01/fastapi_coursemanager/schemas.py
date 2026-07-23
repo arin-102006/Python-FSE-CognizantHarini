@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 
@@ -28,13 +28,13 @@ class CourseResponse(BaseModel):
 
 class StudentCreate(BaseModel):
     name: str
-    email: str
+    email: EmailStr
 
 
 class StudentResponse(BaseModel):
     id: int
     name: str
-    email: str
+    email: EmailStr
 
     model_config = {"from_attributes": True}
 
@@ -44,12 +44,27 @@ class EnrollmentCreate(BaseModel):
     course_id: int
 
 
-class DepartmentResponse(BaseModel):
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserResponse(BaseModel):
     id: int
-    name: str
-    courses: list[CourseResponse] = []
+    email: EmailStr
+    is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 
 class ErrorDetail(BaseModel):

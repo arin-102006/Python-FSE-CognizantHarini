@@ -1,4 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import String, Boolean
+
 
 class Base(DeclarativeBase):
     pass
@@ -28,3 +30,24 @@ class Enrollment(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     student_id: Mapped[int]
     course_id: Mapped[int]
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+    )
+
+    hashed_password: Mapped[str] = mapped_column(
+        String(255)
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )

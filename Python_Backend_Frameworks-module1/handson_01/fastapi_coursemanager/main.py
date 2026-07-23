@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Optional
 
 from fastapi import (
@@ -8,11 +9,18 @@ from fastapi import (
     BackgroundTasks,
     Response,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 
 from database import get_db, engine
-from models import Base, Course, Student, Enrollment
+from models import (
+    Base,
+    Course,
+    Student,
+    Enrollment,
+    User,
+)
 from schemas import (
     CourseCreate,
     CourseUpdate,
@@ -20,22 +28,36 @@ from schemas import (
     StudentCreate,
     StudentResponse,
     EnrollmentCreate,
+    UserRegister,
+    UserLogin,
+    UserResponse,
+    Token,
     PaginatedCourses,
 )
+from security import (
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    get_current_user,
+)
 
-# API Versioning:
 # URL Versioning: /api/v1/
 # Alternative: Header Versioning using
 # Accept: application/vnd.api+json;version=1
 
 app = FastAPI(
     title="Course Management API",
-    description="FastAPI CRUD API following REST Best Practices",
-    version="2.1",
-    contact={
-        "name": "Harini SG",
-        "email": "harini@example.com",
-    },
+    description="FastAPI Course Management with JWT Authentication",
+    version="3.0",
+)
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -47,26 +69,87 @@ async def startup():
 
 @app.get("/")
 async def root():
-    return {"message": "API running"}
+    return {"message": "API running successfully"}
 
 
-def send_confirmation_email(student_email: str):
-    print(f"Sending confirmation to {student_email}")
+def send_confirmation_email(email: str):
+    print(f"Sending confirmation email to {email}")
 
 
-def error_response(code: str, message: str, field=None):
-    raise HTTPException(
-        status_code=404 if code == "NOT_FOUND" else 400,
-        detail={
-            "error": {
-                "code": code,
-                "message": message,
-                "field": field,
-            }
-        },
+@app.post(
+    "/api/v1/auth/register/",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def register(
+    user: UserRegister,
+    db: AsyncSession = Depends(get_db),
+):
+    existing = await db.execute(
+        select(User).where(User.email == user.email)
     )
 
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="Email already registered",
+        )
 
+    # bcrypt is preferred because it is intentionally
+    # slow, making brute-force attacks much harder than
+    # MD5 or SHA-256.
+
+    new_user = User(
+        email=user.email,
+        hashed_password=get_password_hash(
+            user.password
+        ),
+        is_active=True,
+    )
+
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+
+    return new_user
+
+
+@app.post(
+    "/api/v1/auth/login/",
+    response_model=Token,
+)
+async def login(
+    user: UserLogin,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(User).where(User.email == user.email)
+    )
+
+    db_user = result.scalar_one_or_none()
+
+    if (
+        db_user is None
+        or not verify_password(
+            user.password,
+            db_user.hashed_password,
+        )
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+        )
+
+    token = create_access_token(
+        {
+            "sub": db_user.email
+        }
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+    }
 @app.post(
     "/api/v1/courses/",
     response_model=CourseResponse,
@@ -75,6 +158,7 @@ def error_response(code: str, message: str, field=None):
 async def create_course(
     course: CourseCreate,
     response: Response,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     obj = Course(**course.model_dump())
@@ -83,7 +167,9 @@ async def create_course(
     await db.commit()
     await db.refresh(obj)
 
-    response.headers["Location"] = f"/api/v1/courses/{obj.id}/"
+    response.headers["Location"] = (
+        f"/api/v1/courses/{obj.id}/"
+    )
 
     return obj
 
@@ -109,11 +195,15 @@ async def get_courses(
         )
 
     total = await db.scalar(
-        select(func.count()).select_from(query.subquery())
+        select(func.count()).select_from(
+            query.subquery()
+        )
     )
 
     result = await db.execute(
-        query.offset((page - 1) * page_size).limit(page_size)
+        query.offset(
+            (page - 1) * page_size
+        ).limit(page_size)
     )
 
     courses = result.scalars().all()
@@ -147,18 +237,22 @@ async def get_course(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Course).where(Course.id == course_id)
+        select(Course).where(
+            Course.id == course_id
+        )
     )
 
     course = result.scalar_one_or_none()
 
     if course is None:
-        error_response(
-            "NOT_FOUND",
-            f"Course with id {course_id} does not exist",
+        raise HTTPException(
+            status_code=404,
+            detail="Course not found",
         )
 
     return course
+
+
 @app.put(
     "/api/v1/courses/{course_id}",
     response_model=CourseResponse,
@@ -169,15 +263,17 @@ async def update_course(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Course).where(Course.id == course_id)
+        select(Course).where(
+            Course.id == course_id
+        )
     )
 
     obj = result.scalar_one_or_none()
 
     if obj is None:
-        error_response(
-            "NOT_FOUND",
-            f"Course with id {course_id} does not exist",
+        raise HTTPException(
+            status_code=404,
+            detail="Course not found",
         )
 
     obj.name = course.name
@@ -201,18 +297,22 @@ async def patch_course(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Course).where(Course.id == course_id)
+        select(Course).where(
+            Course.id == course_id
+        )
     )
 
     obj = result.scalar_one_or_none()
 
     if obj is None:
-        error_response(
-            "NOT_FOUND",
-            f"Course with id {course_id} does not exist",
+        raise HTTPException(
+            status_code=404,
+            detail="Course not found",
         )
 
-    updates = course.model_dump(exclude_unset=True)
+    updates = course.model_dump(
+        exclude_unset=True
+    )
 
     for key, value in updates.items():
         setattr(obj, key, value)
@@ -229,26 +329,27 @@ async def patch_course(
 )
 async def delete_course(
     course_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Course).where(Course.id == course_id)
+        select(Course).where(
+            Course.id == course_id
+        )
     )
 
     obj = result.scalar_one_or_none()
 
     if obj is None:
-        error_response(
-            "NOT_FOUND",
-            f"Course with id {course_id} does not exist",
+        raise HTTPException(
+            status_code=404,
+            detail="Course not found",
         )
 
     await db.delete(obj)
     await db.commit()
 
     return Response(status_code=204)
-
-
 @app.post(
     "/api/v1/students/",
     response_model=StudentResponse,
@@ -265,12 +366,16 @@ async def create_student(
     await db.commit()
     await db.refresh(obj)
 
-    response.headers["Location"] = f"/api/v1/students/{obj.id}/"
+    response.headers["Location"] = (
+        f"/api/v1/students/{obj.id}/"
+    )
 
     return obj
 
 
-@app.get("/api/v1/courses/{course_id}/students/")
+@app.get(
+    "/api/v1/courses/{course_id}/students/"
+)
 async def get_course_students(
     course_id: int,
     db: AsyncSession = Depends(get_db),
@@ -317,3 +422,18 @@ async def create_enrollment(
     return {
         "message": "Enrollment created"
     }
+
+
+# OAuth2 Authorization Code Flow:
+# In OAuth2 Authorization Code Flow, the user logs in through
+# an external Identity Provider (such as Google or Microsoft).
+# The provider returns an authorization code, which is exchanged
+# for an access token.
+#
+# This project uses a simpler JWT authentication approach where
+# the application directly validates the user's email and password,
+# generates a JWT token, and uses that token to access protected APIs.
+#
+# JWT payloads are Base64 encoded, NOT encrypted.
+# Never store sensitive information such as passwords,
+# credit card numbers, or secrets inside a JWT.
