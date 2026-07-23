@@ -1,38 +1,44 @@
-# student-portal-vue
+# Hands-On 10 - API Integration & Advanced State Management
 
-This template should help get you started developing with Vue 3 in Vite.
+## Framework Used
+Vue 3 + Pinia
 
-## Recommended IDE Setup
+## Features Implemented
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Centralized Axios API Client
+- Request Interceptor
+- Response Interceptor
+- API Service Layer
+- Pinia Advanced Store
+- Async fetchAndEnroll() Action
+- Store Reset using $reset()
+- Global Error Handler
 
-## Recommended Browser Setup
+## State Management Comparison
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+### React + Redux Toolkit
+- Uses actions, reducers and async thunks.
+- Good for large applications.
+- More boilerplate than Pinia.
 
-## Customize configuration
+### Angular + NgRx
+- Uses Actions, Reducers, Effects and Selectors.
+- Very structured.
+- Steeper learning curve.
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+### Vue + Pinia
+- Very simple syntax.
+- Less boilerplate.
+- Excellent integration with Vue Composition API.
+- Supports async actions and reactive state easily.
 
-## Project Setup
+## NgRx Data Flow
 
-```sh
-npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
+Component
+→ Action
+→ Effect
+→ API
+→ Reducer
+→ Store
+→ Selector
+→ Component
